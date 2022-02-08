@@ -5,10 +5,18 @@ const capturer = new CCapture({
 });
 
 let _frameCount = [0];
-let speedOffset = 0.5;  // Change speed
+let speedOffset = 10;  // Change speed
+
+let theShader, _pixelDensity;
+const vertexShader = require('webpack-glsl-loader!./shader/vertexShader.vert');
+const fragmentShader = require('webpack-glsl-loader!./shader/fragmentShader.frag');
 
 setup=()=>{
-    createCanvas(windowWidth, windowHeight);
+    const w = 6262;
+    const h = 862;
+    createCanvas(w, h, WEBGL);
+    theShader = createShader(vertexShader, fragmentShader);
+    _pixelDensity = pixelDensity();
 };
 
 draw=()=>{
@@ -19,23 +27,38 @@ draw=()=>{
         capturer.start();
     }
 
-    background(`#eee`);
-    ellipse(
-      width / 2,
-      height / 2,
-      min(width, height) * map(sin(getRadiansFromFrame()), -1, 1, 0.3, 0.6)
-    );
+    if (theShader) {
+        theShader.setUniform("resolution", [width * _pixelDensity, height * _pixelDensity]);
+        theShader.setUniform("time", getTime());
+        shader(theShader);
+        const offsetX = 1;
+        const offsetY = 1;
+
+        quad(-offsetX, -offsetY, offsetX, -offsetY, offsetX, offsetY, -offsetX, offsetY);
+    } else {
+        background(`#eee`);
+        ellipse(
+            width / 2,
+            height / 2,
+            min(width, height) * map(sin(getRadiansFromFrame()), -1, 1, 0.3, 0.6)
+        );
+    }
 
     // End capture
     if (isImageGenerationMode) {
         if (_frameCount[0] < 360 / speedOffset) {
             capturer.capture(canvas);
+            console.log(_frameCount[0]);
         } else if (_frameCount[0] === 360 / speedOffset) {
             capturer.save();
             capturer.stop();
             isImageGenerationMode = false;
         }
     }
+};
+
+const getTime = () => {
+    return millis() / 1000;
 };
 
 const getRadiansFromFrame = () => {
